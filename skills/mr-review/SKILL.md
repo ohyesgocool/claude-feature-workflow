@@ -67,6 +67,19 @@ inside curl headers.
    these files as empty or missing.` Reviewers reading a silently truncated diff produce false
    "file is empty/missing" findings — disclosure prevents that entire failure class.
 
+**Re-review rounds (delta mode).** Before fetching the diff, scan the MR's existing comments
+for the latest brief of ours carrying a `Reviewed: <sha> · round <r>` footer. If one exists and
+`<sha>` is a real commit on the branch, this is round r+1 — review the *change since the last
+review*, not the whole MR again:
+
+- The diff sent to reviewers is **only the delta**: `git fetch` the branch, then
+  `git diff <sha>..<head>`. Cheaper rounds, and reviewers see exactly what moved.
+- Collect **prior findings and their outcomes** from the review threads (the `/address-review`
+  replies: `✅ Fixed in <sha> — …`, `Not changing — …`) and fill the delta preamble template
+  (end of this file), so reviewers verify fixes instead of re-raising them.
+- If the footer is missing, garbled, or the sha is unknown to the repo, **fall back silently to
+  a full review** — a wrong delta is worse than a redundant full pass.
+
 ### Step 2: Build the context pack, then each reviewer's prompt
 
 **The context pack** exists because reviewers only see the diff — most false positives are
@@ -115,7 +128,13 @@ body or an empty comment to the MR.
 
 ### Step 4: Post each brief as its own MR discussion
 
-One discussion per reviewer, verbatim:
+One discussion per reviewer, verbatim — plus the machine-readable footer that enables delta
+mode next round (metadata, not content; appending it is not editing the reviewer's output):
+
+```
+---
+_Reviewed: <head-sha> · round <r>_
+```
 
 ```bash
 glab api "projects/:id/merge_requests/<iid>/discussions" -X POST -F "body=@brief-openai.md"
@@ -132,6 +151,7 @@ Report, in this shape:
 ## MR Review — !{N} "{title}"
 
 Reviewers: {OpenAI gpt-5.5 ✅ · Grok grok-4.3 ✅ / failed: reason}
+Mode: {full review | delta since <sha> (round {r})}
 Diff sent: {N} files, {M} chars {(truncated — X files disclosed as omitted)}
 Context pack: {conventions · plan decisions · architecture | empty}
 Verdicts: OpenAI → {verdict line} · Grok → {verdict line}
@@ -216,6 +236,19 @@ Use this exact structure:
 ### Test coverage to add
 
 ### Notes
+```
+
+### Delta re-review preamble (prepended to either template in delta mode)
+
+```
+This is re-review round {{ROUND}}. The diff below contains ONLY the changes since your
+previous review (commit {{LAST_SHA}}). Prior findings and their outcomes:
+
+{{PRIOR_FINDINGS}}
+
+Do not re-raise findings marked fixed unless this delta shows the fix is wrong or
+incomplete. Do not re-litigate dismissed findings unless this delta contradicts the
+stated reason. Focus on: (1) verifying the fixes, (2) new issues introduced by the delta.
 ```
 
 ### Grok — quality review brief
