@@ -43,9 +43,48 @@ Parse from `$ARGUMENTS` (everything that isn't a flag is the brief / plan path):
 | `--max-rounds=N` | `3` | maximum review→address rounds before an honest non-converged exit |
 | `--autonomous` | off | planner answers its own clarifying questions (recorded as Decisions) instead of asking |
 | `--plan=path` | — | skip planning; start from an existing plan file |
+| `--resume` | auto-detected | continue an interrupted loop from its recorded stage and round |
 
 State the resolved flags in your first status line so a misparse is caught immediately.
 Track the loop in your task tracker: plan · build · round 1 (review, address) · … · merge gate.
+
+## Loop state — the loop survives its session
+
+A loop that dies with its session (crash, interrupt, context loss) and restarts from zero is
+not a tool a team can trust. Persist state and make every stage re-entrant:
+
+**Write `.loop/<feature-slug>.state.json` at every stage boundary** (entering and leaving a
+stage). Shape:
+
+```json
+{
+  "feature": "csv-export", "plan": "docs/plans/2026-07-03-csv-export.md",
+  "branch": "feat/csv-export", "mr": "!87",
+  "stage": "address", "round": 2, "reviewed_sha": "abc1234",
+  "flags": {"merge": "ask", "max_rounds": 3, "autonomous": false},
+  "rounds": [{"valid": 3, "partial": 1, "invalid": 2, "verdicts": ["Request changes", "..."]}],
+  "started_at": "…", "updated_at": "…"
+}
+```
+
+Recommend adding `.loop/` to the project's `.gitignore` — state is transient scaffolding, not
+history (metrics are recorded separately and durably; see the Ship Report).
+
+**On start:** if a state file exists for the current branch, say so and **resume from its
+recorded stage and round** — `--resume` just makes the intent explicit. A new brief while
+stale state exists for a *different* feature is a fresh loop (leave the old file; its loop can
+still be resumed on its own branch). Never silently restart a loop from zero when state says
+it was mid-flight.
+
+**Idempotency contracts per stage** (what makes resume safe):
+- *Plan/Build:* the plan file and branch are checked before recreating — existing plan + branch
+  with commits means resume, not redo.
+- *Review:* before invoking `/mr-review`, check the MR for a brief already footered with the
+  current round — present means the round's review is done; skip to address.
+- *Address:* `/address-review` already never double-posts replies or re-triages resolved
+  threads — safe to re-enter.
+- *Merge gate:* check the MR's actual state first; an MR that is already merged reports
+  merged, it doesn't error.
 
 ## Stages
 
