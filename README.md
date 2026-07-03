@@ -1,6 +1,6 @@
 # Claude Feature Workflow
 
-Five [Claude Code](https://claude.com/claude-code) skills that cover the full lifecycle of shipping a feature — from a rough idea to a merged, independently-reviewed change — including one command that runs the entire loop by itself:
+Six [Claude Code](https://claude.com/claude-code) skills that cover the full lifecycle of shipping a feature — from a rough idea to a change that is merged, independently reviewed, and verified in production:
 
 ```
                         /ship-feature  (the loop, one command)
@@ -8,16 +8,20 @@ Five [Claude Code](https://claude.com/claude-code) skills that cover the full li
 │ /plan-feature ──→ /build-feature ──→ /mr-review ──→ /address-review     │
 │     (plan)           (code + MR)     (external AI      (triage, fix,    │
 │                                        reviewers)        reply)         │
-│                                           ▲                 │           │
-│                                           └── re-review ────┘           │
-│                                              until clean                │
-│                                                  │                      │
+│                          ▲                ▲                 │  │        │
+│                          │                └── re-review ────┘  │        │
+│                          │                   until clean       │        │
+│                   blind-spot ledger  ◄─── "why I missed it" ───┘        │
+│                   (the loop learns)              │                      │
 │                                                  ▼                      │
 │                                    MERGE GATE  --merge=ask|auto|never   │
-└─────────────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────┬──────────────────────────────────┘
+                                       ▼
+                              /land  (pipelines → migrations →
+                               deploy order → canary → SHIPPED)
 ```
 
-The loop's core idea: **the model that writes the code never reviews its own work.** Claude plans and builds; independent external models (OpenAI GPT, xAI Grok) review the MR with fresh eyes and post their findings as comments; Claude then triages those findings honestly — fixing what's real, dismissing what isn't, and replying to every thread with its reasoning — and re-reviews until the review comes back clean. Each skill works standalone; `/ship-feature` chains them.
+Two ideas make this more than a pipeline. First: **the model that writes the code never reviews its own work** — independent external models (OpenAI GPT, xAI Grok) review every MR with fresh eyes, and Claude triages their findings honestly, fixing what's real and dismissing what isn't, on the record. Second: **the loop learns** — every valid finding's "why I missed it" is written to a blind-spot ledger that the builder reads before the next feature, so reviewers stop finding the same category of bug twice. Each skill works standalone; `/ship-feature` chains the middle four, and `/land` takes the merge to production.
 
 ## The skills
 
@@ -84,6 +88,16 @@ Closes the loop. It:
 - Assigns honest verdicts: **VALID** (fix it), **PARTIAL** (right instinct, wrong specifics — fix the real concern), **INVALID** (dismissed, citing the specific context the reviewer couldn't see).
 - For every valid finding, answers **"why I missed it"** with a real blind-spot category — the learning signal is the point.
 - Implements all valid fixes (separate commit per comment), pushes on a green build, and replies to every thread — fixed ones marked done with the commit, invalid ones explained. The only hard stop is a red build.
+- **Feeds the blind-spot ledger**: every lesson is appended to `docs/reviews/blind-spots.md` as a forward-looking rule, with a running category tally. `/build-feature` reads that file before coding and re-checks the diff against the top categories in its verification sweep — the loop's memory, committed to the repo where the whole team (human or agent) inherits it.
+
+### `/land` — post-merge landing
+
+Merged is not shipped. `/land` executes the project's landing runbook (`docs/landing.md` — deploy order, how migrations apply, health checks, smoke checks, canary window, rollback path; drafted automatically on first run by inspecting your CI config and migrations, then confirmed with you):
+
+- Watches the main pipeline(s) to green, applies migrations — or, for production access only a human holds, prints the **exact** commands and waits for your confirmation (steps are explicitly tagged `[claude]` or `[human]`).
+- Deploys in the runbook's order, health-checking each service before moving to the next.
+- Runs smoke checks and holds a canary window before claiming **SHIPPED**.
+- Hard stops on a red pipeline, failed migration, or failed canary — rollback is prepared and offered with evidence, never auto-executed.
 
 ## Install
 
@@ -185,6 +199,8 @@ Or stage by stage, if you want control between steps:
    → triages every finding, fixes the valid ones, replies to every thread, pushes
 
 /mr-review        # optional second pass — re-review the fixed MR until clean
+
+/land             # after merge: pipelines → migrations → deploy order → canary → SHIPPED
 ```
 
 Each skill also works standalone — you can `/address-review` a colleague's MR, or `/mr-review` a hand-written change. `SHIP_MERGE_MODE=ask|auto|never` in your environment sets `/ship-feature`'s default merge behavior without passing the flag each time.
