@@ -1,19 +1,45 @@
 # Claude Feature Workflow
 
-Four [Claude Code](https://claude.com/claude-code) skills that cover the full lifecycle of shipping a feature — from a rough idea to a merged, independently-reviewed change:
+Five [Claude Code](https://claude.com/claude-code) skills that cover the full lifecycle of shipping a feature — from a rough idea to a merged, independently-reviewed change — including one command that runs the entire loop by itself:
 
 ```
-/plan-feature ──→ /build-feature ──→ /mr-review ──→ /address-review
-    (plan)           (code + MR)     (external AI      (triage, fix,
-                                       reviewers)        reply)
-                                          ▲                  │
-                                          └──── re-review ───┘
-                                              until clean
+                        /ship-feature  (the loop, one command)
+┌─────────────────────────────────────────────────────────────────────────┐
+│ /plan-feature ──→ /build-feature ──→ /mr-review ──→ /address-review     │
+│     (plan)           (code + MR)     (external AI      (triage, fix,    │
+│                                        reviewers)        reply)         │
+│                                           ▲                 │           │
+│                                           └── re-review ────┘           │
+│                                              until clean                │
+│                                                  │                      │
+│                                                  ▼                      │
+│                                    MERGE GATE  --merge=ask|auto|never   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-The loop's core idea: **the model that writes the code never reviews its own work.** Claude plans and builds; independent external models (OpenAI GPT, xAI Grok) review the MR with fresh eyes and post their findings as comments; Claude then triages those findings honestly — fixing what's real, dismissing what isn't, and replying to every thread with its reasoning. Repeat `/mr-review` → `/address-review` until the review comes back clean.
+The loop's core idea: **the model that writes the code never reviews its own work.** Claude plans and builds; independent external models (OpenAI GPT, xAI Grok) review the MR with fresh eyes and post their findings as comments; Claude then triages those findings honestly — fixing what's real, dismissing what isn't, and replying to every thread with its reasoning — and re-reviews until the review comes back clean. Each skill works standalone; `/ship-feature` chains them.
 
 ## The skills
+
+### `/ship-feature` — the loop, one command
+
+Dump a feature brief and walk away:
+
+```
+/ship-feature Add CSV export to the reports page — finance needs month-end data in Excel
+```
+
+It plans (asking its clarifying questions up front — the loop's one designed touchpoint), builds and raises the MR, gets the external reviews, addresses them, and **re-reviews until convergence**: zero valid findings (or all verdicts "No blocking issues"), every thread answered, CI green. Then the merge gate:
+
+| Flag | Behavior |
+|---|---|
+| `--merge=ask` *(default)* | stops at **READY TO MERGE** and waits for your approval |
+| `--merge=auto` | merges when converged + CI green (`glab mr merge` / `gh pr merge`) |
+| `--merge=never` | reports and leaves the MR open |
+| `--max-rounds=N` *(default 3)* | honest exit if reviewers keep finding things |
+| `--autonomous` | planner records defaults instead of asking questions |
+
+Safeguards: no-progress detection (a finding surviving two rounds stops the loop instead of thrashing), honest convergence (threads are never resolved just to exit), and the sub-skills' hard stops (architectural concern, red build, red pipeline, merge conflicts) always surface to you.
 
 ### `/plan-feature` — product-owner + architect planner
 
@@ -133,6 +159,17 @@ Either way: **never commit keys to a repository**, and never paste them into MR 
 
 ## Running the loop
 
+The one-command way:
+
+```text
+/ship-feature Add CSV export to the reports page — finance needs month-end data in Excel
+   → answers 2 planning questions up front, then: plan → build → MR !87 → OpenAI+Grok
+     review → 3 findings fixed + 1 dismissed with reasons → re-review clean → CI green
+   → READY TO MERGE (say "merge it", or rerun with --merge=auto to skip this gate)
+```
+
+Or stage by stage, if you want control between steps:
+
 ```text
 /plan-feature  Add CSV export to the reports page — finance needs month-end data in Excel
    → plan saved to docs/plans/2026-07-03-csv-export.md (answers 2 questions on the way)
@@ -150,7 +187,7 @@ Either way: **never commit keys to a repository**, and never paste them into MR 
 /mr-review        # optional second pass — re-review the fixed MR until clean
 ```
 
-Each skill also works standalone — you can `/address-review` a colleague's MR, or `/mr-review` a hand-written change.
+Each skill also works standalone — you can `/address-review` a colleague's MR, or `/mr-review` a hand-written change. `SHIP_MERGE_MODE=ask|auto|never` in your environment sets `/ship-feature`'s default merge behavior without passing the flag each time.
 
 ## Automating the review step (optional)
 
