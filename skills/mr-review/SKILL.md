@@ -67,11 +67,27 @@ inside curl headers.
    these files as empty or missing.` Reviewers reading a silently truncated diff produce false
    "file is empty/missing" findings — disclosure prevents that entire failure class.
 
-### Step 2: Build each reviewer's prompt
+### Step 2: Build the context pack, then each reviewer's prompt
+
+**The context pack** exists because reviewers only see the diff — most false positives are
+context gaps (the convention they didn't know, the decision that was already made). Build a
+pack, capped at ~8,000 chars, in priority order:
+
+1. **Conventions and constraints** from the project's agent-instructions file (`CLAUDE.md` /
+   `AGENTS.md` / equivalent) — only the parts a reviewer needs: style rules, error-handling
+   patterns, architectural rules, deployment constraints.
+2. **The plan's Decisions section**, if this MR traces to a plan file (`docs/plans/`) — what
+   was deliberately cut, deferred, or ruled out, so reviewers don't flag it as forgotten.
+3. **One short architecture paragraph** for the touched area — stated factually from the repo,
+   not argued.
+
+The pack states facts; it must **never pre-defend the diff** ("this is fine because…" is
+argument, not context — leave the defending to `/address-review`, on the record). If none of
+the sources exist, the pack is empty and the prompt omits the section.
 
 Fill the templates below (at the end of this file), substituting `{{PROJECT_PATH}}`, `{{TITLE}}`,
-`{{URL}}`, `{{DESCRIPTION}}`, `{{DIFF}}`. Write each completed prompt to a temp file — don't
-inline megabytes into a shell argument.
+`{{URL}}`, `{{DESCRIPTION}}`, `{{CONTEXT}}`, `{{DIFF}}`. Write each completed prompt to a temp
+file — don't inline megabytes into a shell argument.
 
 ### Step 3: Call the reviewers — in parallel, with patience
 
@@ -117,6 +133,7 @@ Report, in this shape:
 
 Reviewers: {OpenAI gpt-5.5 ✅ · Grok grok-4.3 ✅ / failed: reason}
 Diff sent: {N} files, {M} chars {(truncated — X files disclosed as omitted)}
+Context pack: {conventions · plan decisions · architecture | empty}
 Verdicts: OpenAI → {verdict line} · Grok → {verdict line}
 Comments posted: {links or discussion refs}
 ```
@@ -131,6 +148,9 @@ line-by-line which comments hold, implements the valid ones, and replies to ever
 - **Independence is the product.** Post reviewer output verbatim. You may add the truncation
   disclosure to the *prompt*, but never edit, filter, or soften what comes *back*. If you
   disagree with a finding, that's `/address-review`'s argument to make — on the record.
+- **The context pack informs, never defends.** Conventions, decisions, architecture — facts a
+  reviewer lacks. The moment it starts justifying the diff's choices, it's corrupting the
+  independence the skill exists for.
 - **Review-only.** No code changes, no commits, no approvals, no merge, no thread resolution.
 - **Keys never leak.** Env-var references only; redact anything that could echo them; API error
   bodies are safe to show, request headers are not.
@@ -155,6 +175,10 @@ Title: {{TITLE}}
 URL: {{URL}}
 Description:
 {{DESCRIPTION}}
+
+Project context (authoritative conventions and prior decisions — a finding this
+context contradicts is not a finding; omit this section if empty):
+{{CONTEXT}}
 
 Diff:
 {{DIFF}}
@@ -204,6 +228,10 @@ Title: {{TITLE}}
 URL: {{URL}}
 Description:
 {{DESCRIPTION}}
+
+Project context (authoritative conventions and prior decisions — a finding this
+context contradicts is not a finding; omit this section if empty):
+{{CONTEXT}}
 
 Diff:
 {{DIFF}}
