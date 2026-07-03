@@ -80,7 +80,27 @@ review*, not the whole MR again:
 - If the footer is missing, garbled, or the sha is unknown to the repo, **fall back silently to
   a full review** — a wrong delta is worse than a redundant full pass.
 
-### Step 2: Build the context pack, then each reviewer's prompt
+### Step 2: Static pre-pass — free findings first
+
+Machines catch pattern-class problems for free; save the LLM tokens for judgment calls. Run
+what's installed, skip what isn't — note skips in the report, never fail the review over a
+missing tool:
+
+- **Secrets** — `gitleaks` over the MR's commit range (check the installed version's syntax
+  with `--help`). Any hit is Critical.
+- **Known vulnerability patterns** — `semgrep` (the project's config, else `--config auto`)
+  over the changed files only.
+- **Migration lint** (built-in, no tool required) — grep the diff's migration files for the
+  classics that lock production tables: `CREATE INDEX` without `CONCURRENTLY`,
+  `ADD COLUMN … NOT NULL` without a `DEFAULT`, `ALTER COLUMN … TYPE` (full table rewrite),
+  bare `DROP` / `TRUNCATE`.
+
+**Post at most one comment** — `## Static pre-review`, findings with `file:line`, severity
+first — and **only if there are findings**; a "no issues" comment is noise a team learns to
+ignore. Feed the findings into the context pack (next step) so the LLM reviewers extend them
+instead of duplicating them.
+
+### Step 3: Build the context pack, then each reviewer's prompt
 
 **The context pack** exists because reviewers only see the diff — most false positives are
 context gaps (the convention they didn't know, the decision that was already made). Build a
@@ -93,6 +113,8 @@ pack, capped at ~8,000 chars, in priority order:
    was deliberately cut, deferred, or ruled out, so reviewers don't flag it as forgotten.
 3. **One short architecture paragraph** for the touched area — stated factually from the repo,
    not argued.
+4. **Static pre-pass findings** (Step 2), so reviewers build on them rather than re-derive
+   them.
 
 The pack states facts; it must **never pre-defend the diff** ("this is fine because…" is
 argument, not context — leave the defending to `/address-review`, on the record). If none of
@@ -102,7 +124,7 @@ Fill the templates below (at the end of this file), substituting `{{PROJECT_PATH
 `{{URL}}`, `{{DESCRIPTION}}`, `{{CONTEXT}}`, `{{DIFF}}`. Write each completed prompt to a temp
 file — don't inline megabytes into a shell argument.
 
-### Step 3: Call the reviewers — in parallel, with patience
+### Step 4: Call the reviewers — in parallel, with patience
 
 Both APIs are OpenAI-compatible chat completions. Build the payload with jq (safe escaping),
 call with generous timeouts (big diffs on reasoning models can take minutes), run enabled
@@ -121,7 +143,7 @@ Same shape for Grok against `https://api.x.ai/v1/chat/completions` with `$XAI_AP
 
 Extract each brief: `jq -r '.choices[0].message.content' response-X.json > brief-X.md`.
 Also capture usage for telemetry — `jq '.usage // null' response-X.json` — providers differ in
-fields; record what exists, `null` for what doesn't. Tokens appear in the Step 5 report and
+fields; record what exists, `null` for what doesn't. Tokens appear in the final report and
 flow into the loop's metrics when running under `/ship-feature`.
 
 **Validate before posting**: if the response carries an `.error`, or the brief is empty or
@@ -129,7 +151,7 @@ doesn't start with the expected `## … review` heading, report that reviewer as
 API's error message, never the key) and continue with the other reviewer. Never post an error
 body or an empty comment to the MR.
 
-### Step 4: Post each brief as its own MR discussion
+### Step 5: Post each brief as its own MR discussion
 
 One discussion per reviewer, verbatim — plus the machine-readable footer that enables delta
 mode next round (metadata, not content; appending it is not editing the reviewer's output):
@@ -146,7 +168,7 @@ glab api "projects/:id/merge_requests/<iid>/discussions" -X POST -F "body=@brief
 Re-runs post **new** comments (a re-review after fixes is a new review — that's correct); note in
 your report if earlier review comments from a previous run are still open on the MR.
 
-### Step 5: Report and hand off
+### Step 6: Report and hand off
 
 Report, in this shape:
 
@@ -156,7 +178,8 @@ Report, in this shape:
 Reviewers: {OpenAI gpt-5.5 ✅ · Grok grok-4.3 ✅ / failed: reason}
 Mode: {full review | delta since <sha> (round {r})}
 Diff sent: {N} files, {M} chars {(truncated — X files disclosed as omitted)}
-Context pack: {conventions · plan decisions · architecture | empty}
+Static pre-pass: {n findings posted | clean | gitleaks/semgrep skipped (not installed)}
+Context pack: {conventions · plan decisions · architecture · static findings | empty}
 Verdicts: OpenAI → {verdict line} · Grok → {verdict line}
 Tokens: OpenAI {total or n/a} · Grok {total or n/a}
 Comments posted: {links or discussion refs}
