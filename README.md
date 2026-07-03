@@ -209,7 +209,7 @@ Never commit keys to a repository. The skills only ever reference them as enviro
 
 ## Contributing
 
-The skills are plain Markdown prompts — reading one is understanding it, and improving one is a text edit. Issues and PRs welcome: sharper review prompts, more reviewer backends, better convergence heuristics, forge-specific fixes, portability notes for more agent harnesses. Two contracts to keep: skills stay agent-agnostic (harness-specific features only with a graceful fallback), and reviewers stay independent (different model from the author, verbatim posting, keys via env only).
+The skills are plain Markdown prompts — reading one is understanding it, and improving one is a text edit. Issues and PRs welcome: sharper review prompts, more reviewer backends, forge support, portability notes for more agent harnesses. Before opening either, read [CONTRIBUTING.md](CONTRIBUTING.md) — it's short, and it spells out the project's non-negotiable contracts (agent-agnosticism, reviewer independence, honest exits, noise-aversion) and what evidence a behavior-changing PR needs.
 
 ## License
 
