@@ -120,6 +120,9 @@ Same shape for Grok against `https://api.x.ai/v1/chat/completions` with `$XAI_AP
 `${XAI_MODEL:-grok-4.3}`.
 
 Extract each brief: `jq -r '.choices[0].message.content' response-X.json > brief-X.md`.
+Also capture usage for telemetry — `jq '.usage // null' response-X.json` — providers differ in
+fields; record what exists, `null` for what doesn't. Tokens appear in the Step 5 report and
+flow into the loop's metrics when running under `/ship-feature`.
 
 **Validate before posting**: if the response carries an `.error`, or the brief is empty or
 doesn't start with the expected `## … review` heading, report that reviewer as failed (with the
@@ -155,6 +158,7 @@ Mode: {full review | delta since <sha> (round {r})}
 Diff sent: {N} files, {M} chars {(truncated — X files disclosed as omitted)}
 Context pack: {conventions · plan decisions · architecture | empty}
 Verdicts: OpenAI → {verdict line} · Grok → {verdict line}
+Tokens: OpenAI {total or n/a} · Grok {total or n/a}
 Comments posted: {links or discussion refs}
 ```
 

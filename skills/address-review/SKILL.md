@@ -199,6 +199,10 @@ Follow the project's house rules (`CLAUDE.md` / `AGENTS.md` / equivalent): surgi
 **Update the blind-spot ledger.** After the fixes, append this run's lessons to `docs/reviews/blind-spots.md` (create it on first use): one line per VALID/PARTIAL finding —
 `- [<date> <MR> <comment-id>] <Category> — <the lesson, phrased as a rule for next time>` — and refresh the one-line category tally at the top of the file. Phrase lessons as forward-looking rules ("every new I/O path gets its failure branch coded before the happy path ships"), not as descriptions of the mistake. Keep the file small enough to read whole: past ~50 lessons, distill the oldest into category-level rules. Commit it as its own `docs:` commit alongside the fixes. This ledger is what `/build-feature` reads before coding — it is the loop's memory; a lesson that isn't written down gets relearned the expensive way.
 
+**Record the triage tally.** In the same `docs:` commit, append one line to `docs/loops/metrics.jsonl` (create on first use):
+`{"ts":"<iso8601>","type":"triage","mr":"<ref>","round":<r>,"reviewers":{"<name>":{"valid":n,"partial":n,"invalid":n}},"categories":["error-path","..."]}`
+This single line is what makes reviewer precision and blind-spot trends measurable (`/loop-stats`). An unmeasured loop can only *claim* it's improving.
+
 **Safety abort — the one hard stop.** A green build gates the push. After the changes, the type checker and the full test suite must pass. If they stay red and you can't fix them, **STOP**: report the failure plus the commits made so far, and do **not** push or reply. This is the only thing that interrupts the automatic flow.
 
 **Honest deferral over a reckless fix.** If a comment's fix genuinely can't be made blind — it needs a product decision, a test harness that doesn't exist, or a change far larger than the comment implies — don't force a bad edit. Leave it as a **deferred** item; Step 8 replies "acknowledged, tracking separately." Note any deferrals in your running output.
