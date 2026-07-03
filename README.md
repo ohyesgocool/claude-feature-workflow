@@ -1,9 +1,9 @@
-# Claude Feature Workflow
+# Feature Loop
 
-**Loop engineering for [Claude Code](https://claude.com/claude-code): dump a feature brief, get back a planned, built, independently-reviewed, merge-ready change — and a system that gets better every time it runs.**
+**Loop engineering for AI coding agents: dump a feature brief, get back a planned, built, independently-reviewed, merge-ready change — and a system that gets better every time it runs.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-blue)](#install)
+[![Agent Skills](https://img.shields.io/badge/format-Agent%20Skills-blue)](#works-with)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
 ```
@@ -27,7 +27,7 @@
 
 ## Why
 
-AI coding agents are good at writing code and terrible at grading their own homework. This project structures the work the way a disciplined engineering team would:
+AI coding agents are good at writing code and terrible at grading their own homework. Feature Loop structures the work the way a disciplined engineering team would:
 
 - **A product owner** who studies the codebase and challenges the brief before anything is built (`/plan-feature`)
 - **An engineer** who executes the plan surgically, commits granularly, and always ships the MR with a reviewable description (`/build-feature`)
@@ -38,11 +38,22 @@ AI coding agents are good at writing code and terrible at grading their own home
 
 `/ship-feature` chains the middle four into a self-running loop with an explicit merge gate. Every skill also works standalone.
 
+## Works with
+
+The six skills are plain-Markdown operating procedures in the Agent Skills format (a folder with a `SKILL.md`). There is nothing model-specific in them — any coding agent that can follow a Markdown procedure and run shell commands can execute the loop:
+
+- **Claude Code** — supported natively: install as a plugin or drop the folders into `~/.claude/skills/` (see below).
+- **Other agents** (Cursor, OpenAI Codex CLI, Gemini CLI, OpenCode, …) — point your agent at `skills/<name>/SKILL.md` as the instruction source for that step: load it as a custom command, rule, or prompt file per your tool's convention. Where a skill mentions an optional harness feature (a task tracker, parallel search subagents), it degrades gracefully to plain equivalents.
+
+The hard dependencies are deliberately boring: a git forge CLI (`glab` or `gh`) and `curl` + `jq` for the external reviewer calls. The reviewer side is vendor-neutral too — any OpenAI-compatible chat-completions endpoint can be a reviewer.
+
 ## Quick start
 
+**Claude Code (native):**
+
 ```
-/plugin marketplace add ohyesgocool/claude-feature-workflow
-/plugin install feature-workflow@claude-feature-workflow
+/plugin marketplace add ohyesgocool/feature-loop
+/plugin install feature-workflow@feature-loop
 ```
 
 Then, in any repo:
@@ -53,14 +64,14 @@ Then, in any repo:
 
 It asks its clarifying questions up front (the loop's one designed touchpoint), then: plan → build → MR → external review → fixes → re-review until clean → **READY TO MERGE**. Say "merge it", or run with `--merge=auto` to skip the gate.
 
-Prefer manual installation? Clone and copy:
+**Manual / other agents:**
 
 ```bash
-git clone https://github.com/ohyesgocool/claude-feature-workflow.git
-cp -r claude-feature-workflow/skills/* ~/.claude/skills/
+git clone https://github.com/ohyesgocool/feature-loop.git
+# Claude Code:
+cp -r feature-loop/skills/* ~/.claude/skills/
+# Any other agent: register each skills/<name>/SKILL.md as a command/rule/prompt
 ```
-
-New Claude Code sessions pick the skills up automatically.
 
 ## The skills
 
@@ -119,7 +130,7 @@ Tally: Error path ×4 · Consistency ×2 · Edge case ×1
 
 ### `/land` — post-merge release engineer
 
-Merged is not shipped. `/land` executes your project's landing runbook (`docs/landing.md` — deploy order, how migrations apply, health checks, smoke checks, canary window, rollback path; drafted automatically on first run from your CI config and confirmed with you). Every step is tagged `[claude]` (executed and probed directly) or `[human]` (production access only you hold — you get the exact commands, and it waits). It deploys in order with health checks between services, holds a canary window after smoke checks, and claims **SHIPPED** only when the canary closes clean. Rollback is prepared and offered with evidence — never auto-executed.
+Merged is not shipped. `/land` executes your project's landing runbook (`docs/landing.md` — deploy order, how migrations apply, health checks, smoke checks, canary window, rollback path; drafted automatically on first run from your CI config and confirmed with you). Every step is tagged `[agent]` (executed and probed directly) or `[human]` (production access only you hold — you get the exact commands, and it waits). It deploys in order with health checks between services, holds a canary window after smoke checks, and claims **SHIPPED** only when the canary closes clean. Rollback is prepared and offered with evidence — never auto-executed.
 
 ## Configuration
 
@@ -127,13 +138,13 @@ Merged is not shipped. `/land` executes your project's landing runbook (`docs/la
 
 | Requirement | Needed for | Where to get it |
 |---|---|---|
-| **Claude Code** | everything — planning, building, triage, orchestration | [claude.com/claude-code](https://claude.com/claude-code) |
+| **An AI coding agent** (Claude Code supported natively) | planning, building, triage, orchestration | [claude.com/claude-code](https://claude.com/claude-code), or [your tool of choice](#works-with) |
 | **`glab` CLI** (GitLab) or **`gh` CLI** (GitHub), authenticated | MRs/PRs: raising, reading, commenting, merging | `glab auth login` / `gh auth login` |
 | **`OPENAI_API_KEY`** | the GPT reviewer in `/mr-review` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 | **`XAI_API_KEY`** *(optional)* | the Grok reviewer in `/mr-review` | [console.x.ai](https://console.x.ai) |
 | `jq`, `curl` | `/mr-review` API calls | preinstalled on most systems / `brew install jq` |
 
-> **You do not need a separate Claude/Anthropic API key.** The skills run inside Claude Code under your existing login. The only external keys are for the independent reviewers — and with neither set, everything except `/mr-review` still works fully.
+> **No extra LLM key is needed for the author side.** The skills run under whatever your coding agent already uses (e.g. your Claude Code login). The only additional keys are for the *independent reviewers* — and with neither set, everything except `/mr-review` still works fully.
 
 ### Reviewer settings
 
@@ -148,10 +159,16 @@ Merged is not shipped. `/land` executes your project's landing runbook (`docs/la
 
 ### Where to put the keys
 
-**Option A — Claude Code settings** (recommended; applies everywhere):
+**Shell profile** (`~/.zshrc` / `~/.bashrc`) — works for every agent:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export XAI_API_KEY="xai-..."
+```
+
+**Claude Code users** can alternatively keep them in the `env` block of `~/.claude/settings.json`:
 
 ```json
-// ~/.claude/settings.json
 {
   "env": {
     "OPENAI_API_KEY": "sk-...",
@@ -160,22 +177,17 @@ Merged is not shipped. `/land` executes your project's landing runbook (`docs/la
 }
 ```
 
-**Option B — shell profile** (`~/.zshrc` / `~/.bashrc`):
-
-```bash
-export OPENAI_API_KEY="sk-..."
-export XAI_API_KEY="xai-..."
-```
-
 Never commit keys to a repository. The skills only ever reference them as environment variables and never print them.
 
 ## FAQ
 
-**Does it work with GitHub?** Yes. The skills are written GitLab-first (`glab`), and each MR-touching skill carries a "Forge note" mapping every command to its `gh` equivalent — Claude applies the mapping automatically when the repo is on GitHub.
+**Is this Claude-specific?** No. Claude Code is supported natively (plugin + skills directory), but the skills are plain Markdown procedures with no model-specific instructions — see [Works with](#works-with). The reviewer side speaks the OpenAI-compatible chat-completions API, so reviewers are swappable too.
+
+**Does it work with GitHub?** Yes. The skills are written GitLab-first (`glab`), and each MR-touching skill carries a "Forge note" mapping every command to its `gh` equivalent — the agent applies the mapping automatically when the repo is on GitHub.
 
 **Can I use just one or two skills?** Yes — each is standalone. `/address-review` works on any MR with comments (including a colleague's); `/mr-review` can review a hand-written change; `/land` runs off any merged MR.
 
-**What does a loop cost?** Claude usage under your existing Claude Code plan, plus reviewer API tokens per round (one OpenAI and/or one xAI call per round, diff-sized). `--max-rounds` caps it; the Ship Report shows how many rounds convergence took.
+**What does a loop cost?** Author-side usage under your coding agent's existing plan, plus reviewer API tokens per round (one OpenAI and/or one xAI call per round, diff-sized). `--max-rounds` caps it; the Ship Report shows how many rounds convergence took.
 
 **How autonomous is it, really?** Deliberately bounded. The loop automates *iteration*; it never automates *judgment*. Human touchpoints: the planner's questions at the start (skippable with `--autonomous`), any genuine architectural concern, a red build or pipeline, and the merge gate (unless you opt into `--merge=auto`).
 
@@ -183,7 +195,7 @@ Never commit keys to a repository. The skills only ever reference them as enviro
 
 ## Contributing
 
-The skills are plain Markdown prompts — reading one is understanding it, and improving one is a text edit. Issues and PRs welcome: sharper review prompts, more reviewer backends, better convergence heuristics, forge-specific fixes. If you add a reviewer, keep the contract: independent model, verbatim posting, keys via env only.
+The skills are plain Markdown prompts — reading one is understanding it, and improving one is a text edit. Issues and PRs welcome: sharper review prompts, more reviewer backends, better convergence heuristics, forge-specific fixes, portability notes for more agent harnesses. Two contracts to keep: skills stay agent-agnostic (harness-specific features only with a graceful fallback), and reviewers stay independent (different model from the author, verbatim posting, keys via env only).
 
 ## License
 
