@@ -73,6 +73,8 @@ cp -r feature-loop/skills/* ~/.claude/skills/
 # Any other agent: register each skills/<name>/SKILL.md as a command/rule/prompt
 ```
 
+**Full walkthrough:** [SETUP.md](SETUP.md) — line-by-line setup with a checkpoint after every step (forge CLI auth, reviewer keys, optional static tools, first run, troubleshooting). Written to be followed by a person or executed by an LLM.
+
 ## The skills
 
 | Skill | Role | Standalone use |
