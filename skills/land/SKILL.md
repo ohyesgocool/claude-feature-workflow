@@ -6,7 +6,7 @@ description: |
   in the runbook's order, then canary-verify (health checks, smoke checks) before declaring
   shipped. Runbook-driven: reads docs/landing.md; on first run it drafts one by inspecting the
   repo (CI config, migrations, health endpoints) and confirms it with you. Every step is tagged
-  [claude] (executed directly) or [human] (prod-locked — handed to you as exact commands and
+  [agent] (executed directly) or [human] (prod-locked — handed to you as exact commands and
   waited on, never assumed). Hard stops: red pipeline, failed migration, failed canary,
   unconfirmed human step. Never auto-rolls-back; prepares the revert and asks.
   Use when: "land this", "deploy the merge", after /ship-feature merges, "take it to prod",
@@ -23,7 +23,7 @@ engineer would — from a written runbook, step by step, verifying each step bef
 and stopping loudly the moment reality disagrees.
 
 Two kinds of steps, always explicit:
-- **`[claude]`** — you execute and verify it directly (watch a pipeline, call a health
+- **`[agent]`** — you execute and verify it directly (watch a pipeline, call a health
   endpoint, run a migration command you have access to).
 - **`[human]`** — production access the user holds and you don't (a psql session into a locked
   VPC, a cloud console action). You hand over the **exact** command or click-path, then wait
@@ -45,7 +45,7 @@ the team can review and version it. The skill reads `docs/landing.md`, which def
 - How they're applied: {auto on deploy | command `…` | [human] manual psql against prod}
 - Where they live: {path}
 
-## Health checks            <!-- [claude] -->
+## Health checks            <!-- [agent] -->
 - {GET https://…/health → expect 200}
 - {command → expected output}
 
@@ -86,7 +86,7 @@ payload for each MR:
 ### Step 2: Load (or draft) the runbook
 
 Read `docs/landing.md`. Missing → the first-run drafting flow above. Present the **landing
-plan**: the ordered checklist for this specific landing, each step tagged `[claude]` or
+plan**: the ordered checklist for this specific landing, each step tagged `[agent]` or
 `[human]`, before executing anything. Do not pause for approval — the plan is printed so the
 user can interrupt, and the `[human]` steps are natural checkpoints anyway.
 
@@ -98,7 +98,7 @@ For each repo/service in the runbook's deploy order:
    (`glab ci status` / `gh run watch`; poll with patience, report progress once per ~2 min).
    Red pipeline = hard stop with the failing job's log tail.
 2. **Migrations before or per the runbook's ordering** —
-   - `[claude]` migrations: run the runbook's command, then **verify the effect** (the
+   - `[agent]` migrations: run the runbook's command, then **verify the effect** (the
      migration's own success output plus a functional probe where possible — the app-level
      query or endpoint that would fail if the schema change didn't land).
    - `[human]` migrations: print the exact command block (file path, target, any ordering
@@ -129,10 +129,10 @@ damage; the human makes that call with your evidence in front of them.
 Outcome: SHIPPED ✅ | STOPPED at {step} ({reason})
 
 Sequence:
-  1. [claude] {repo} pipeline → green (4m12s)
+  1. [agent] {repo} pipeline → green (4m12s)
   2. [human]  psql migration 046 → confirmed by user · probe ✅
-  3. [claude] {repo} deploy verified · health ✅
-  4. [claude] smoke checks 3/3 ✅ · canary window 10m clean
+  3. [agent] {repo} deploy verified · health ✅
+  4. [agent] smoke checks 3/3 ✅ · canary window 10m clean
 
 Follow-ups: {deferred items carried forward · runbook updates worth making · none}
 ```

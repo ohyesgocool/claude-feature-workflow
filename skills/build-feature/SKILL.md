@@ -48,7 +48,7 @@ Read the **entire** plan file top to bottom: What changes, How, Product framing,
 inventory, every phase block, Risks, and the Recon appendix. Do not skim to the phases — the
 Decisions section tells you what was already ruled out, and the appendix is your inherited context.
 
-Build the working checklist (TodoWrite): one item per phase, in plan order, plus a final
+Build the working checklist (your harness's task tracker, or a plain list): one item per phase, in plan order, plus a final
 "verification sweep" item. If `$ARGUMENTS` was an inline task instead of a plan, write the
 checklist from the task and do a compact recon of your own (Step 3 covers it) — but for anything
 multi-phase or cross-repo, recommend running `/plan-feature` first rather than improvising.

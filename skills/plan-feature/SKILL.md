@@ -49,8 +49,9 @@ Also load the house context that constrains any plan:
 ### Step 2: Codebase recon — never plan from memory
 
 Study how this codebase actually does things **before** forming any opinion on design. Use
-parallel Explore agents for breadth (structure, naming conventions, similar features) and direct
-Reads for the specific areas the feature will touch. Establish, with `file:line` references:
+parallel read-only search subagents for breadth where your harness supports them (structure,
+naming conventions, similar features) and direct file reads for the specific areas the feature
+will touch. Establish, with `file:line` references:
 
 - **Structure** — where this kind of feature lives (routes, services, components, schema, jobs).
 - **The nearest existing feature** — the closest thing already built. Its shape is the default

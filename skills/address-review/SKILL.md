@@ -5,8 +5,8 @@ description: |
   decide which comments are valid against the actual diff (line by line), explain why each valid one
   was missed during coding, defend the correct decisions reviewers got wrong, then implement the
   fixes, push, and reply to every comment thread — all in one pass, without stopping to ask.
-  Built for the loop where Claude writes the code, you raise an MR, and reviewer agents
-  comment with less project context than Claude has.
+  Built for the loop where an AI coding agent writes the code, you raise an MR, and reviewer
+  agents comment with less project context than the author has.
   Invoking the skill is the go-ahead for the whole loop (triage → implement → push → reply); the only
   hard stop is a red build. Valid comments get marked done on the MR, invalid ones explained.
   Use when: addressing MR/PR review comments, "address the review", "incorporate review feedback",

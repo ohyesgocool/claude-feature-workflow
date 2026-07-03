@@ -45,7 +45,7 @@ Parse from `$ARGUMENTS` (everything that isn't a flag is the brief / plan path):
 | `--plan=path` | — | skip planning; start from an existing plan file |
 
 State the resolved flags in your first status line so a misparse is caught immediately.
-Track the loop in TodoWrite: plan · build · round 1 (review, address) · … · merge gate.
+Track the loop in your task tracker: plan · build · round 1 (review, address) · … · merge gate.
 
 ## Stages
 
